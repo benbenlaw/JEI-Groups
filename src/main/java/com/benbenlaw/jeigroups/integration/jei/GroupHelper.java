@@ -1,15 +1,15 @@
 package com.benbenlaw.jeigroups.integration.jei;
 
-import com.benbenlaw.jeigroups.integration.jei.JEIGroupsPlugin;
-import com.benbenlaw.jeigroups.integration.jei.StackGroup;
 import mezz.jei.api.ingredients.IIngredientHelper;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.subtypes.UidContext;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.NonNull;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class GroupHelper implements IIngredientHelper<StackGroup> {
 
@@ -24,26 +24,13 @@ public class GroupHelper implements IIngredientHelper<StackGroup> {
     }
 
     @Override
-    public String getUid(StackGroup ingredient, UidContext context) {
-        return "jeigroups:" + ingredient.name().toLowerCase() + (ingredient.expanded() ? "_open" : "_closed");
+    public Object getUid(StackGroup ingredient, UidContext context) {
+        return "jeigroups:" + ingredient.name().toLowerCase() + (ingredient.expanded() ? "_expanded" : "_collapsed");
     }
 
     @Override
     public Identifier getIdentifier(StackGroup ingredient) {
-        return Identifier.fromNamespaceAndPath("jeigroups",
-                ingredient.name().toLowerCase().replace(" ", "_"));
-    }
-
-    // CRITICAL: This tells JEI what to search for.
-    // Without this, the filter might hide the folder upon re-adding.
-    @Override
-    public Iterable<Integer> getColors(StackGroup ingredient) {
-        return List.of(); // Optional: used for color search
-    }
-
-    @Override
-    public ItemStack getCheatItemStack(StackGroup ingredient) {
-        return ingredient.icon();
+        return Identifier.fromNamespaceAndPath("jeigroups", "folder/" + ingredient.name().toLowerCase());
     }
 
     @Override
@@ -53,6 +40,11 @@ public class GroupHelper implements IIngredientHelper<StackGroup> {
 
     @Override
     public String getErrorInfo(@Nullable StackGroup ingredient) {
-        return ingredient != null ? ingredient.name() : "null group";
+        return ingredient != null ? "Group: " + ingredient.name() : "null group";
+    }
+
+    @Override
+    public String getDisplayModId(StackGroup ingredient) {
+        return "JEI Groups";
     }
 }

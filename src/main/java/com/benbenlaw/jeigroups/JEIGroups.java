@@ -1,5 +1,6 @@
 package com.benbenlaw.jeigroups;
 
+import com.benbenlaw.jeigroups.integration.jei.GroupDataLoader;
 import com.mojang.logging.LogUtils;
 import mezz.jei.api.JeiPlugin;
 import net.minecraft.client.Minecraft;
@@ -25,7 +26,9 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -43,11 +46,17 @@ public class JEIGroups {
 
     public JEIGroups(final IEventBus eventBus, final ModContainer modContainer) {
 
+        eventBus.addListener(JEIGroups::onAddReloadListener);
     }
 
     public static Identifier identifier(String path) {
         return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
+
+    @SubscribeEvent
+    public static void onAddReloadListener(AddClientReloadListenersEvent event) {
+        event.addListener(JEIGroups.identifier("jei_groups"), new GroupDataLoader());
+    }
 }
 

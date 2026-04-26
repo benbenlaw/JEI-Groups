@@ -11,14 +11,19 @@ import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.runtime.*;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.*;
+
+import static com.mojang.text2speech.Narrator.LOGGER;
 
 @JeiPlugin
 public class JEIGroupsPlugin implements IModPlugin {
@@ -47,11 +52,24 @@ public class JEIGroupsPlugin implements IModPlugin {
 
     @Override
     public void registerIngredients(IModIngredientRegistration registration) {
-        // Starts as expanded = false
-        StackGroup woolGroup = new StackGroup("Wool", new ItemStack(Items.BOOK), getWoolChildren(), false);
-        groupCache.put(woolGroup.name(), woolGroup);
 
-        registration.register(GROUP_TYPE, List.of(woolGroup), new GroupHelper(), new GroupRenderer(), StackGroup.CODEC);
+        groupCache.clear();
+
+        GroupDataLoader.RAW_DATA.forEach((name, data) -> {
+            var iconItem = BuiltInRegistries.ITEM.getValue(data.icon());
+            var children = data.items().stream()
+                    .map(itemId -> new ItemStack(BuiltInRegistries.ITEM.getValue(itemId)))
+                    .toList();
+
+            StackGroup group = new StackGroup(name, new ItemStack(iconItem), children, false);
+            groupCache.put(name, group);
+        });
+
+        if (groupCache.isEmpty()) {
+            LOGGER.warn("No JEI groups found in GroupDataLoader!");
+        }
+
+        registration.register(GROUP_TYPE, new ArrayList<>(groupCache.values()), new GroupHelper(), new GroupRenderer(), StackGroup.CODEC);
     }
 
     @Override
@@ -59,11 +77,9 @@ public class JEIGroupsPlugin implements IModPlugin {
         this.jeiRuntime = jeiRuntime;
         IIngredientManager manager = jeiRuntime.getIngredientManager();
 
-        // Hide the real wools so they ONLY appear when the book is clicked
-        manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, getWoolChildren());
-
-        // OPTIONAL: If you want to hide the standard book so the ONLY book is your group
-        // manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, List.of(new ItemStack(Items.BOOK)));
+        for (StackGroup group : groupCache.values()) {
+            manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, group.children());
+        }
     }
 
     @Override
@@ -71,13 +87,20 @@ public class JEIGroupsPlugin implements IModPlugin {
         registration.addGlobalGuiHandler(new IGlobalGuiHandler() {
             @Override
             public Optional<? extends IClickableIngredient<?>> getClickableIngredientUnderMouse(IClickableIngredientFactory factory, double mouseX, double mouseY) {
+
                 return jeiRuntime.getIngredientListOverlay().getIngredientUnderMouse()
                         .flatMap(clickable -> {
-                            // Since the "Back Button" and "Folder" are both StackGroups now,
-                            // this one check handles both Expand and Collapse!
                             if (clickable.getIngredient() instanceof StackGroup group) {
-                                toggleGroup(group);
-                                return Optional.empty();
+
+                                long handle = Minecraft.getInstance().getWindow().handle();
+                                boolean isLeftPressed = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+
+                                if (isLeftPressed) {
+                                    toggleGroup(group);
+                                }
+
+                                return factory.createBuilder(GROUP_TYPE, group)
+                                        .buildWithArea((int)mouseX - 10, (int)mouseY - 10, 20, 20);
                             }
                             return Optional.empty();
                         });
@@ -87,24 +110,26 @@ public class JEIGroupsPlugin implements IModPlugin {
 
     private void toggleGroup(StackGroup group) {
         IIngredientManager manager = jeiRuntime.getIngredientManager();
-        var itemType = VanillaTypes.ITEM_STACK;
-
-        StackGroup toggledGroup = group.withExpanded(!group.expanded());
+        boolean nowExpanded = !group.expanded();
+        StackGroup toggledGroup = group.withExpanded(nowExpanded);
         groupCache.put(group.name(), toggledGroup);
 
-        if (group.expanded()) {
-            // --- COLLAPSING (Shrinking) ---
-            manager.addIngredientsAtRuntime(GROUP_TYPE, List.of(toggledGroup));
-            manager.removeIngredientsAtRuntime(GROUP_TYPE, List.of(group));
-            manager.removeIngredientsAtRuntime(itemType, group.children());
-        } else {
-            // --- EXPANDING ---
-            manager.addIngredientsAtRuntime(GROUP_TYPE, List.of(toggledGroup));
-            manager.removeIngredientsAtRuntime(GROUP_TYPE, List.of(group));
-            manager.addIngredientsAtRuntime(itemType, group.children());
-        }
+        manager.removeIngredientsAtRuntime(GROUP_TYPE, List.of(group));
+        manager.addIngredientsAtRuntime(GROUP_TYPE, List.of(toggledGroup));
 
-        // Mandatory refresh
+        if (nowExpanded) {
+            new Thread(() -> {
+                try {
+                    Thread.sleep(150);
+                    Minecraft.getInstance().execute(() -> {
+                        manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, toggledGroup.children());
+                        jeiRuntime.getIngredientFilter().setFilterText(jeiRuntime.getIngredientFilter().getFilterText());
+                    });
+                } catch (InterruptedException ignored) {}
+            }).start();
+        } else {
+            manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, toggledGroup.children());
+        }
         jeiRuntime.getIngredientFilter().setFilterText(jeiRuntime.getIngredientFilter().getFilterText());
     }
 }

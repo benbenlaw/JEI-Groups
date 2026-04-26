@@ -2,6 +2,7 @@ package com.benbenlaw.jeigroups.integration.jei;
 
 import mezz.jei.api.ingredients.IIngredientRenderer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.TooltipFlag;
 
@@ -12,15 +13,8 @@ public class GroupRenderer implements IIngredientRenderer<StackGroup> {
     @Override
     public void render(GuiGraphicsExtractor guiGraphics, StackGroup ingredient) {
         guiGraphics.fakeItem(ingredient.icon(), 0, 0);
-
         String label = ingredient.expanded() ? " <" : " +";
-        int color = ingredient.expanded() ? 0xFFFF0000 : 0xFF00FF00; // Red for back, Green for expand
-
-        //guiGraphics.pose().pushMatrix();
-        //guiGraphics.pose().translate(10, 10, 200);
-        //guiGraphics.pose().scale(0.5f, 0.5f, 0.5f);
-        //guiGraphics.stra(Minecraft.getInstance().font, label, 0, 0, color, true);
-        //guiGraphics.pose().popPose();
+        int color = ingredient.expanded() ? 0xFFFF0000 : 0xFF00FF00;
     }
 
     @Override

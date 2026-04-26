@@ -1,0 +1,7 @@
+{
+  "name": "Enchanted Books",
+  "icon": "minecraft:enchanted_book",
+  "items": [
+    "minecraft:enchanted_book"
+  ]
+}
