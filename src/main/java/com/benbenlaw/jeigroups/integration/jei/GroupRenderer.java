@@ -14,7 +14,7 @@ public class GroupRenderer implements IIngredientRenderer<StackGroup> {
     @Override
     public void render(GuiGraphicsExtractor guiGraphics, StackGroup ingredient) {
         guiGraphics.fakeItem(ingredient.icon(), 0, 0);
-        String label = ingredient.expanded() ? "-" : "+";
+        String label = ingredient.expanded() ? "+" : "+";
         int color = ingredient.expanded() ? 0xFFFF0000 : 0xFF00FF00;
         guiGraphics.text(Minecraft.getInstance().font, label, 12, 10, color);
         guiGraphics.fill(0, 0, 16, 16, 0x55000000);

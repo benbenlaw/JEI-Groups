@@ -1,9 +1,12 @@
 package com.benbenlaw.jeigroups.mixin;
 
+import com.benbenlaw.jeigroups.integration.jei.JEIGroupsPlugin;
+import com.benbenlaw.jeigroups.integration.jei.StackGroup;
 import com.llamalad7.mixinextras.sugar.Local;
 import mezz.jei.api.ingredients.rendering.BatchRenderElement;
 import mezz.jei.library.render.ItemStackRenderer;
 import mezz.jei.library.render.batch.SimpleItemStackBatchRenderer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
@@ -20,30 +23,28 @@ import java.util.List;
 public class ItemStackBatchRendererMixin {
 
     @Inject(
-            method = "renderBatch(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lmezz/jei/library/render/ItemStackRenderer;Ljava/util/List;)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;II)V"),
+            method = "renderBatch",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.AFTER),
             remap = false
     )
-    private void jeigroups$drawBackgroundBeforeItem(
-            GuiGraphicsExtractor guiGraphics,
-            ItemStackRenderer itemStackRenderer,
-            List<BatchRenderElement<ItemStack>> elements,
-            CallbackInfo ci,
-            @Local BatchRenderElement<ItemStack> element
-    ) {
+    private void jeigroups$drawOverlay(GuiGraphicsExtractor guiGraphics, ItemStackRenderer itemStackRenderer, List<BatchRenderElement<ItemStack>> elements, CallbackInfo ci, @Local BatchRenderElement<ItemStack> element) {
         ItemStack stack = element.ingredient();
+        if (stack == null || stack.isEmpty() || JEIGroupsPlugin.instance == null) return;
 
-        if (stack != null && !stack.isEmpty() && jeigroups$isGrouped(stack)) {
-            guiGraphics.fill(element.x(), element.y(), element.x() + 16, element.y() + 16, 0x8055FF55);
+        StackGroup group = JEIGroupsPlugin.instance.getGroupForItem(stack);
+
+        if (group != null) {
+            if (!group.expanded()) {
+                // Check if this is the anchor item
+                if (stack.getItem() == group.children().get(0).getItem()) {
+                    guiGraphics.fakeItem(group.icon(), element.x(), element.y());
+                    guiGraphics.fill(element.x(), element.y(), element.x() + 16, element.y() + 16, 0x55000000);
+                    guiGraphics.text(Minecraft.getInstance().font, "+", element.x() + 11, element.y() + 9, 0xFF55FF55);
+                }
+            } else {
+                // GROUP IS EXPANDED: Highlight EVERY item in this group green
+                guiGraphics.fill(element.x(), element.y(), element.x() + 16, element.y() + 16, 0x3055FF55);
+            }
         }
-    }
-
-    @Unique
-    private boolean jeigroups$isGrouped(ItemStack stack) {
-        // Check our static set in the plugin
-        // We use matches() or compare the Item to be safe
-        return com.benbenlaw.jeigroups.integration.jei.JEIGroupsPlugin.EXPANDED_ITEM_STACKS
-                .stream()
-                .anyMatch(expanded -> ItemStack.isSameItem(stack, expanded));
     }
 }

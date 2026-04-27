@@ -4,32 +4,27 @@ import com.benbenlaw.jeigroups.JEIGroups;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.VanillaTypes;
-import mezz.jei.api.gui.builder.IClickableIngredientFactory;
-import mezz.jei.api.gui.handlers.IGlobalGuiHandler;
 import mezz.jei.api.ingredients.IIngredientType;
-import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IModIngredientRegistration;
-import mezz.jei.api.runtime.*;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.component.DataComponents;
+import mezz.jei.api.runtime.IIngredientManager;
+import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
-import org.lwjgl.glfw.GLFW;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-import static com.mojang.text2speech.Narrator.LOGGER;
-
 @JeiPlugin
 public class JEIGroupsPlugin implements IModPlugin {
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(JEIGroupsPlugin.class);
     public static final IIngredientType<StackGroup> GROUP_TYPE = () -> StackGroup.class;
     public static final Set<ItemStack> EXPANDED_ITEM_STACKS = Collections.synchronizedSet(new HashSet<>());
+    private final Map<Item, StackGroup> itemToGroupMap = new HashMap<>();
 
-    private final Map<String, StackGroup> groupCache = new HashMap<>();
+    public final Map<String, StackGroup> groupCache = new HashMap<>();
     public static JEIGroupsPlugin instance;
     public IJeiRuntime jeiRuntime;
 
@@ -40,31 +35,25 @@ public class JEIGroupsPlugin implements IModPlugin {
 
     @Override
     public void registerIngredients(IModIngredientRegistration registration) {
-
         groupCache.clear();
+        itemToGroupMap.clear();
 
         GroupDataLoader.RAW_DATA.forEach((name, data) -> {
             var iconItem = BuiltInRegistries.ITEM.getValue(data.icon());
-
             var children = data.items().stream()
                     .map(itemId -> new ItemStack(BuiltInRegistries.ITEM.getValue(itemId)))
                     .toList();
 
             StackGroup group = new StackGroup(name, new ItemStack(iconItem), children, false);
             groupCache.put(name, group);
+
+            // Map every child item to this group for fast lookup
+            for (ItemStack child : children) {
+                itemToGroupMap.put(child.getItem(), group);
+            }
         });
 
-        if (groupCache.isEmpty()) {
-            LOGGER.warn("No JEI groups found in GroupDataLoader!");
-        }
-
-        registration.register(
-                GROUP_TYPE,
-                new ArrayList<>(groupCache.values()),
-                new GroupHelper(),
-                new GroupRenderer(),
-                StackGroup.CODEC
-        );
+        //registration.register(GROUP_TYPE, new ArrayList<>(groupCache.values()), new GroupHelper(), new GroupRenderer(), StackGroup.CODEC);
     }
 
     @Override
@@ -74,47 +63,79 @@ public class JEIGroupsPlugin implements IModPlugin {
         IIngredientManager manager = jeiRuntime.getIngredientManager();
 
         for (StackGroup group : groupCache.values()) {
-            manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, group.children());
+            if (!group.expanded() && group.children().size() > 1) {
+                // REMOVE EVERYTHING EXCEPT THE FIRST ONE
+                // subList(1, size) handles this safely.
+                List<ItemStack> followers = group.children().subList(1, group.children().size());
+                manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
+            }
         }
     }
 
-    public boolean leftClickWasDown = false;
-
-    @Override
-    public void registerGuiHandlers(IGuiHandlerRegistration registration) {
-        registration.addGlobalGuiHandler(new IGlobalGuiHandler() {
-            @Override
-            public Optional<? extends IClickableIngredient<?>> getClickableIngredientUnderMouse(
-                    IClickableIngredientFactory factory, double mouseX, double mouseY) {
-                return Optional.empty();
-            }
-        });
-    }
     public void toggleGroup(StackGroup group) {
         IIngredientManager manager = jeiRuntime.getIngredientManager();
         boolean nowExpanded = !group.expanded();
         StackGroup toggledGroup = group.withExpanded(nowExpanded);
 
+        // Update the main cache
         groupCache.put(group.name(), toggledGroup);
 
-        manager.removeIngredientsAtRuntime(GROUP_TYPE, List.of(group));
-        manager.addIngredientsAtRuntime(GROUP_TYPE, List.of(toggledGroup));
+        // Update the lookup map for children (important for click detection)
+        for (ItemStack child : group.children()) {
+            itemToGroupMap.put(child.getItem(), toggledGroup);
+        }
+
+        List<ItemStack> followers = group.children().subList(1, group.children().size());
 
         if (nowExpanded) {
-            EXPANDED_ITEM_STACKS.addAll(group.children());
-            manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, group.children());
+            // Add EVERY item in the group to the highlight set
+            for (ItemStack child : group.children()) {
+                EXPANDED_ITEM_STACKS.add(child.getItem().getDefaultInstance());
+            }
+            manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
         } else {
-            group.children().forEach(EXPANDED_ITEM_STACKS::remove);
-            manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, group.children());
+            // Remove EVERY item from the highlight set
+            for (ItemStack child : group.children()) {
+                EXPANDED_ITEM_STACKS.remove(child.getItem());
+            }
+            manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
         }
 
         refreshFilter();
     }
 
+    // Inside JEIGroupsPlugin
+    public StackGroup getCollapsedGroupForFirstChild(ItemStack stack) {
+        for (StackGroup group : groupCache.values()) {
+            if (!group.expanded() && !group.children().isEmpty()) {
+                ItemStack anchor = group.children().get(0);
+                // Looser check: just check the Item definition
+                if (stack.getItem() == anchor.getItem()) {
+                    return group;
+                }
+            }
+        }
+        return null;
+    }
 
+    public StackGroup getGroupFromAnchor(ItemStack stack) {
+        for (StackGroup group : groupCache.values()) {
+            if (!group.children().isEmpty()) {
+                // Check only the base Item definition to be safe
+                if (stack.getItem() == group.children().get(0).getItem()) {
+                    return group;
+                }
+            }
+        }
+        return null;
+    }
+
+    public StackGroup getGroupForItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return null;
+        return itemToGroupMap.get(stack.getItem());
+    }
 
     private void refreshFilter() {
-        jeiRuntime.getIngredientFilter()
-                .setFilterText(jeiRuntime.getIngredientFilter().getFilterText());
+        jeiRuntime.getIngredientFilter().setFilterText(jeiRuntime.getIngredientFilter().getFilterText());
     }
 }
