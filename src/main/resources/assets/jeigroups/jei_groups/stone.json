@@ -1,0 +1,14 @@
+{
+  "name": "Stone",
+  "icon": "minecraft:stone_pickaxe",
+  "items": [
+    "minecraft:stone_pickaxe",
+    "minecraft:stone_axe",
+    "minecraft:stone_shovel",
+    "minecraft:stone_hoe",
+    "minecraft:stone_sword",
+    "minecraft:stone_bricks",
+    "minecraft:stone_brick_stairs",
+    "minecraft:stone_brick_slab"
+  ]
+}

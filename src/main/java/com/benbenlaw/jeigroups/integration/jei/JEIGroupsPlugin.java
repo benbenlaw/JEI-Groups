@@ -10,14 +10,12 @@ import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.runtime.*;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import org.lwjgl.glfw.GLFW;
 
@@ -29,25 +27,15 @@ import static com.mojang.text2speech.Narrator.LOGGER;
 public class JEIGroupsPlugin implements IModPlugin {
 
     public static final IIngredientType<StackGroup> GROUP_TYPE = () -> StackGroup.class;
+    public static final Set<ItemStack> EXPANDED_ITEM_STACKS = Collections.synchronizedSet(new HashSet<>());
 
     private final Map<String, StackGroup> groupCache = new HashMap<>();
+
     private IJeiRuntime jeiRuntime;
 
     @Override
     public Identifier getPluginUid() {
         return JEIGroups.identifier("jei_plugin");
-    }
-
-    private List<ItemStack> getWoolChildren() {
-        return List.of(
-                new ItemStack(Items.RED_WOOL), new ItemStack(Items.BLUE_WOOL),
-                new ItemStack(Items.GREEN_WOOL), new ItemStack(Items.YELLOW_WOOL),
-                new ItemStack(Items.BLACK_WOOL), new ItemStack(Items.WHITE_WOOL),
-                new ItemStack(Items.ORANGE_WOOL), new ItemStack(Items.PURPLE_WOOL),
-                new ItemStack(Items.BROWN_WOOL), new ItemStack(Items.CYAN_WOOL),
-                new ItemStack(Items.LIGHT_GRAY_WOOL), new ItemStack(Items.LIGHT_BLUE_WOOL),
-                new ItemStack(Items.MAGENTA_WOOL), new ItemStack(Items.GRAY_WOOL)
-        );
     }
 
     @Override
@@ -57,6 +45,7 @@ public class JEIGroupsPlugin implements IModPlugin {
 
         GroupDataLoader.RAW_DATA.forEach((name, data) -> {
             var iconItem = BuiltInRegistries.ITEM.getValue(data.icon());
+
             var children = data.items().stream()
                     .map(itemId -> new ItemStack(BuiltInRegistries.ITEM.getValue(itemId)))
                     .toList();
@@ -69,7 +58,13 @@ public class JEIGroupsPlugin implements IModPlugin {
             LOGGER.warn("No JEI groups found in GroupDataLoader!");
         }
 
-        registration.register(GROUP_TYPE, new ArrayList<>(groupCache.values()), new GroupHelper(), new GroupRenderer(), StackGroup.CODEC);
+        registration.register(
+                GROUP_TYPE,
+                new ArrayList<>(groupCache.values()),
+                new GroupHelper(),
+                new GroupRenderer(),
+                StackGroup.CODEC
+        );
     }
 
     @Override
@@ -86,21 +81,20 @@ public class JEIGroupsPlugin implements IModPlugin {
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
         registration.addGlobalGuiHandler(new IGlobalGuiHandler() {
             @Override
-            public Optional<? extends IClickableIngredient<?>> getClickableIngredientUnderMouse(IClickableIngredientFactory factory, double mouseX, double mouseY) {
+            public Optional<? extends IClickableIngredient<?>> getClickableIngredientUnderMouse(
+                    IClickableIngredientFactory factory, double mouseX, double mouseY) {
 
                 return jeiRuntime.getIngredientListOverlay().getIngredientUnderMouse()
                         .flatMap(clickable -> {
                             if (clickable.getIngredient() instanceof StackGroup group) {
 
                                 long handle = Minecraft.getInstance().getWindow().handle();
-                                boolean isLeftPressed = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
-
-                                if (isLeftPressed) {
+                                if (GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_RELEASE) {
                                     toggleGroup(group);
                                 }
 
                                 return factory.createBuilder(GROUP_TYPE, group)
-                                        .buildWithArea((int)mouseX - 10, (int)mouseY - 10, 20, 20);
+                                        .buildWithArea(0,0,0,0);
                             }
                             return Optional.empty();
                         });
@@ -112,24 +106,27 @@ public class JEIGroupsPlugin implements IModPlugin {
         IIngredientManager manager = jeiRuntime.getIngredientManager();
         boolean nowExpanded = !group.expanded();
         StackGroup toggledGroup = group.withExpanded(nowExpanded);
+
         groupCache.put(group.name(), toggledGroup);
 
         manager.removeIngredientsAtRuntime(GROUP_TYPE, List.of(group));
         manager.addIngredientsAtRuntime(GROUP_TYPE, List.of(toggledGroup));
 
         if (nowExpanded) {
-            new Thread(() -> {
-                try {
-                    Thread.sleep(150);
-                    Minecraft.getInstance().execute(() -> {
-                        manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, toggledGroup.children());
-                        jeiRuntime.getIngredientFilter().setFilterText(jeiRuntime.getIngredientFilter().getFilterText());
-                    });
-                } catch (InterruptedException ignored) {}
-            }).start();
+            EXPANDED_ITEM_STACKS.addAll(group.children());
+            manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, group.children());
         } else {
-            manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, toggledGroup.children());
+            group.children().forEach(EXPANDED_ITEM_STACKS::remove);
+            manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, group.children());
         }
-        jeiRuntime.getIngredientFilter().setFilterText(jeiRuntime.getIngredientFilter().getFilterText());
+
+        refreshFilter();
+    }
+
+
+
+    private void refreshFilter() {
+        jeiRuntime.getIngredientFilter()
+                .setFilterText(jeiRuntime.getIngredientFilter().getFilterText());
     }
 }
