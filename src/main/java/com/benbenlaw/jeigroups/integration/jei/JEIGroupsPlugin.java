@@ -30,8 +30,8 @@ public class JEIGroupsPlugin implements IModPlugin {
     public static final Set<ItemStack> EXPANDED_ITEM_STACKS = Collections.synchronizedSet(new HashSet<>());
 
     private final Map<String, StackGroup> groupCache = new HashMap<>();
-
-    private IJeiRuntime jeiRuntime;
+    public static JEIGroupsPlugin instance;
+    public IJeiRuntime jeiRuntime;
 
     @Override
     public Identifier getPluginUid() {
@@ -69,6 +69,7 @@ public class JEIGroupsPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+        instance = this;
         this.jeiRuntime = jeiRuntime;
         IIngredientManager manager = jeiRuntime.getIngredientManager();
 
@@ -77,32 +78,19 @@ public class JEIGroupsPlugin implements IModPlugin {
         }
     }
 
+    public boolean leftClickWasDown = false;
+
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
         registration.addGlobalGuiHandler(new IGlobalGuiHandler() {
             @Override
             public Optional<? extends IClickableIngredient<?>> getClickableIngredientUnderMouse(
                     IClickableIngredientFactory factory, double mouseX, double mouseY) {
-
-                return jeiRuntime.getIngredientListOverlay().getIngredientUnderMouse()
-                        .flatMap(clickable -> {
-                            if (clickable.getIngredient() instanceof StackGroup group) {
-
-                                long handle = Minecraft.getInstance().getWindow().handle();
-                                if (GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_RELEASE) {
-                                    toggleGroup(group);
-                                }
-
-                                return factory.createBuilder(GROUP_TYPE, group)
-                                        .buildWithArea(0,0,0,0);
-                            }
-                            return Optional.empty();
-                        });
+                return Optional.empty();
             }
         });
     }
-
-    private void toggleGroup(StackGroup group) {
+    public void toggleGroup(StackGroup group) {
         IIngredientManager manager = jeiRuntime.getIngredientManager();
         boolean nowExpanded = !group.expanded();
         StackGroup toggledGroup = group.withExpanded(nowExpanded);
