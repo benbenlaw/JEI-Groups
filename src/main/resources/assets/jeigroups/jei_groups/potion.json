@@ -1,0 +1,7 @@
+{
+  "name": "Potions",
+  "icon": "minecraft:potion",
+  "items": [
+    "minecraft:potion"
+  ]
+}

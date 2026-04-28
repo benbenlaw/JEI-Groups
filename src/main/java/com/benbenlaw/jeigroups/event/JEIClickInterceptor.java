@@ -38,7 +38,6 @@ public class JEIClickInterceptor {
                 boolean isShiftDown = GLFW.glfwGetKey(Minecraft.getInstance().getWindow().handle(), GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
                         GLFW.glfwGetKey(Minecraft.getInstance().getWindow().handle(), GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
 
-                // Check if the item we clicked is the anchor (first child)
                 boolean isAnchor = stack.getItem() == group.children().getFirst().getItem();
 
                 if (!group.expanded()) {
@@ -47,7 +46,6 @@ public class JEIClickInterceptor {
                         event.setCanceled(true);
                     }
                 } else {
-                    // If expanded, Shift-Clicking ANY item in the group will close it
                     if (isShiftDown) {
                         instance.toggleGroup(group);
                         event.setCanceled(true);
@@ -68,24 +66,17 @@ public class JEIClickInterceptor {
             boolean isAnchor = stack.getItem() == group.children().getFirst().getItem();
 
             if (!group.expanded()) {
-                // Only show group title and expand info on the collapsed anchor
                 if (isAnchor) {
-                    // Replace the item name with the Group Name as the Title
-                    event.getToolTip().set(0, Component.literal("Group: ")
-                            .append(Component.literal(group.name()).withStyle(ChatFormatting.WHITE))
-                            .withStyle(ChatFormatting.GOLD).withStyle(ChatFormatting.ITALIC));
+                    event.getToolTip().set(0, Component.translatable("tooltip.jeigroups.group", group.name())
+                            .withStyle(ChatFormatting.GOLD).withStyle(ChatFormatting.BOLD));
 
-                    // Add the "see more" line
                     int count = group.children().size() - 1;
-                    event.getToolTip().add(Component.literal("Click to expand ")
-                            .append(Component.literal(String.valueOf(count)).withStyle(ChatFormatting.GREEN))
-                            .append(" more items")
+                    event.getToolTip().add(Component.translatable("tooltip.jeigroups.click_to_expand", count)
                             .withStyle(ChatFormatting.GRAY).withStyle(ChatFormatting.ITALIC));
+
                 }
             } else {
-                // Show the close hint on all children (including anchor) when expanded
-                event.getToolTip().add(Component.literal("Shift-click to collapse group: ")
-                        .append(Component.literal(group.name()).withStyle(ChatFormatting.GOLD))
+                event.getToolTip().add(Component.translatable("tooltip.jeigroups.click_to_collapse", group.name())
                         .withStyle(ChatFormatting.GRAY).withStyle(ChatFormatting.ITALIC));
             }
         }

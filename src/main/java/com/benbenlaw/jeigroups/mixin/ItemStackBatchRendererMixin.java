@@ -35,14 +35,12 @@ public class ItemStackBatchRendererMixin {
 
         if (group != null) {
             if (!group.expanded()) {
-                // Check if this is the anchor item
                 if (stack.getItem() == group.children().get(0).getItem()) {
                     guiGraphics.fakeItem(group.icon(), element.x(), element.y());
                     guiGraphics.fill(element.x(), element.y(), element.x() + 16, element.y() + 16, 0x55000000);
                     guiGraphics.text(Minecraft.getInstance().font, "+", element.x() + 11, element.y() + 9, 0xFF55FF55);
                 }
             } else {
-                // GROUP IS EXPANDED: Highlight EVERY item in this group green
                 guiGraphics.fill(element.x(), element.y(), element.x() + 16, element.y() + 16, 0x3055FF55);
             }
         }

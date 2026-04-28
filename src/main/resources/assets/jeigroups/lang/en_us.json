@@ -1,0 +1,5 @@
+{
+  "tooltip.jeigroups.click_to_expand": "Click to expand %s more items",
+  "tooltip.jeigroups.group": "Group: %s",
+  "tooltip.jeigroups.click_to_collapse": "Shift-click to collapse group: %s"
+}

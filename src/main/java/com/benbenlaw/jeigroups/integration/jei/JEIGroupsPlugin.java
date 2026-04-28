@@ -20,11 +20,15 @@ import java.util.*;
 @JeiPlugin
 public class JEIGroupsPlugin implements IModPlugin {
     private static final Logger LOGGER = LoggerFactory.getLogger(JEIGroupsPlugin.class);
+
     public static final IIngredientType<StackGroup> GROUP_TYPE = () -> StackGroup.class;
     public static final Set<ItemStack> EXPANDED_ITEM_STACKS = Collections.synchronizedSet(new HashSet<>());
-    private final Map<Item, StackGroup> itemToGroupMap = new HashMap<>();
 
+    private final Map<Item, StackGroup> itemToGroupMap = new HashMap<>();
     public final Map<String, StackGroup> groupCache = new HashMap<>();
+
+    private final Map<Item, List<ItemStack>> jeiVariantCache = new HashMap<>();
+
     public static JEIGroupsPlugin instance;
     public IJeiRuntime jeiRuntime;
 
@@ -39,95 +43,115 @@ public class JEIGroupsPlugin implements IModPlugin {
         itemToGroupMap.clear();
 
         GroupDataLoader.RAW_DATA.forEach((name, data) -> {
-            var iconItem = BuiltInRegistries.ITEM.getValue(data.icon());
+            var iconItem = data.icon().create();
+
             var children = data.items().stream()
                     .map(itemId -> new ItemStack(BuiltInRegistries.ITEM.getValue(itemId)))
                     .toList();
 
-            StackGroup group = new StackGroup(name, new ItemStack(iconItem), children, false);
+            StackGroup group = new StackGroup(name, iconItem, children, false);
             groupCache.put(name, group);
 
-            // Map every child item to this group for fast lookup
             for (ItemStack child : children) {
                 itemToGroupMap.put(child.getItem(), group);
             }
         });
-
-        //registration.register(GROUP_TYPE, new ArrayList<>(groupCache.values()), new GroupHelper(), new GroupRenderer(), StackGroup.CODEC);
     }
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
         instance = this;
         this.jeiRuntime = jeiRuntime;
+
         IIngredientManager manager = jeiRuntime.getIngredientManager();
 
+        Collection<ItemStack> allStacks = manager.getAllIngredients(VanillaTypes.ITEM_STACK);
+
         for (StackGroup group : groupCache.values()) {
-            if (!group.expanded() && group.children().size() > 1) {
-                // REMOVE EVERYTHING EXCEPT THE FIRST ONE
-                // subList(1, size) handles this safely.
+            if (group.children().isEmpty()) continue;
+
+            if (group.children().size() == 1) {
+                Item targetItem = group.children().getFirst().getItem();
+
+                List<ItemStack> variants = allStacks.stream()
+                        .filter(stack -> stack.getItem() == targetItem)
+                        .toList();
+
+                jeiVariantCache.put(targetItem, variants);
+
+                if (!group.expanded() && variants.size() > 1) {
+                    ItemStack icon = group.icon();
+
+                    List<ItemStack> toRemove = variants.stream()
+                            .filter(stack -> !ItemStack.isSameItemSameComponents(stack, icon))
+                            .toList();
+
+                    if (!toRemove.isEmpty()) {
+                        manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, toRemove);
+                    }
+                }
+
+            } else {
                 List<ItemStack> followers = group.children().subList(1, group.children().size());
-                manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
+
+                if (!group.expanded() && !followers.isEmpty()) {
+                    manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
+                }
             }
         }
     }
 
     public void toggleGroup(StackGroup group) {
         IIngredientManager manager = jeiRuntime.getIngredientManager();
+
         boolean nowExpanded = !group.expanded();
         StackGroup toggledGroup = group.withExpanded(nowExpanded);
 
-        // Update the main cache
         groupCache.put(group.name(), toggledGroup);
 
-        // Update the lookup map for children (important for click detection)
         for (ItemStack child : group.children()) {
             itemToGroupMap.put(child.getItem(), toggledGroup);
         }
 
-        List<ItemStack> followers = group.children().subList(1, group.children().size());
+        if (group.children().isEmpty()) return;
 
-        if (nowExpanded) {
-            // Add EVERY item in the group to the highlight set
-            for (ItemStack child : group.children()) {
-                EXPANDED_ITEM_STACKS.add(child.getItem().getDefaultInstance());
+        boolean isVariantGroup = group.children().size() == 1;
+
+        if (isVariantGroup) {
+            // 🔵 Variant-based (paintings)
+            Item targetItem = group.children().getFirst().getItem();
+
+            List<ItemStack> variants = jeiVariantCache.get(targetItem);
+            if (variants == null || variants.isEmpty()) return;
+
+            if (nowExpanded) {
+                manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, variants);
+            } else {
+                ItemStack icon = group.icon();
+
+                List<ItemStack> toRemove = variants.stream()
+                        .filter(stack -> !ItemStack.isSameItemSameComponents(stack, icon))
+                        .toList();
+
+                if (!toRemove.isEmpty()) {
+                    manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, toRemove);
+                }
             }
-            manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
+
         } else {
-            // Remove EVERY item from the highlight set
-            for (ItemStack child : group.children()) {
-                EXPANDED_ITEM_STACKS.remove(child.getItem());
+            // 🟢 Multi-item (wool etc.)
+            List<ItemStack> followers = group.children().subList(1, group.children().size());
+
+            if (!followers.isEmpty()) {
+                if (nowExpanded) {
+                    manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
+                } else {
+                    manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
+                }
             }
-            manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
         }
 
         refreshFilter();
-    }
-
-    // Inside JEIGroupsPlugin
-    public StackGroup getCollapsedGroupForFirstChild(ItemStack stack) {
-        for (StackGroup group : groupCache.values()) {
-            if (!group.expanded() && !group.children().isEmpty()) {
-                ItemStack anchor = group.children().get(0);
-                // Looser check: just check the Item definition
-                if (stack.getItem() == anchor.getItem()) {
-                    return group;
-                }
-            }
-        }
-        return null;
-    }
-
-    public StackGroup getGroupFromAnchor(ItemStack stack) {
-        for (StackGroup group : groupCache.values()) {
-            if (!group.children().isEmpty()) {
-                // Check only the base Item definition to be safe
-                if (stack.getItem() == group.children().get(0).getItem()) {
-                    return group;
-                }
-            }
-        }
-        return null;
     }
 
     public StackGroup getGroupForItem(ItemStack stack) {
@@ -136,6 +160,8 @@ public class JEIGroupsPlugin implements IModPlugin {
     }
 
     private void refreshFilter() {
-        jeiRuntime.getIngredientFilter().setFilterText(jeiRuntime.getIngredientFilter().getFilterText());
+        jeiRuntime.getIngredientFilter().setFilterText(
+                jeiRuntime.getIngredientFilter().getFilterText()
+        );
     }
 }
