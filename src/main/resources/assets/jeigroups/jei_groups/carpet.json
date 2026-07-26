@@ -1,8 +1,8 @@
 {
-  "name": "Wool",
-  "icon": "minecraft:white_wool",
+  "name": "Carpets",
+  "icon": "minecraft:white_carpet",
   "items": [
-    "#minecraft:wool"
+    "#minecraft:wool_carpets"
   ],
   "border_color": "#FF000000",
   "background_color": "#40404040",

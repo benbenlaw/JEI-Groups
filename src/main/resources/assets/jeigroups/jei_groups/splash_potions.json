@@ -1,8 +1,8 @@
 {
-  "name": "Potions",
-  "icon": "minecraft:potion",
+  "name": "Splash Potions",
+  "icon": "minecraft:splash_potion",
   "items": [
-    "minecraft:potion"
+    "minecraft:splash_potion"
   ],
   "border_color": "#FFB030BD",
   "background_color": "#40B030BD",

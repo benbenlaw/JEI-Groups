@@ -1,8 +1,8 @@
 {
-  "name": "Wool",
-  "icon": "minecraft:white_wool",
+  "name": "Bundles",
+  "icon": "minecraft:bundle",
   "items": [
-    "#minecraft:wool"
+    "#minecraft:bundles"
   ],
   "border_color": "#FF000000",
   "background_color": "#40404040",

@@ -8,21 +8,22 @@ import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.runtime.IIngredientManager;
 import mezz.jei.api.runtime.IJeiRuntime;
+import mezz.jei.gui.ingredients.IngredientFilter;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.mojang.text2speech.Narrator.LOGGER;
 
 @JeiPlugin
 public class JEIGroupsPlugin implements IModPlugin {
-    private static final Logger LOGGER = LoggerFactory.getLogger(JEIGroupsPlugin.class);
-
-    public static final IIngredientType<StackGroup> GROUP_TYPE = () -> StackGroup.class;
-    public static final Set<ItemStack> EXPANDED_ITEM_STACKS = Collections.synchronizedSet(new HashSet<>());
 
     private final Map<Item, StackGroup> itemToGroupMap = new HashMap<>();
     public final Map<String, StackGroup> groupCache = new HashMap<>();
@@ -39,23 +40,37 @@ public class JEIGroupsPlugin implements IModPlugin {
 
     @Override
     public void registerIngredients(IModIngredientRegistration registration) {
+        instance = this;
+        rebuildGroups();
+    }
+    public void rebuildGroups() {
         groupCache.clear();
         itemToGroupMap.clear();
 
+        Set<String> savedExpanded = ExpandedGroupsStorage.load();
+
         GroupDataLoader.RAW_DATA.forEach((name, data) -> {
             var iconItem = data.icon().create();
+            var children = resolveItemStacks(data.items());
 
-            var children = data.items().stream()
-                    .map(itemId -> new ItemStack(BuiltInRegistries.ITEM.getValue(itemId)))
-                    .toList();
+            if (children.isEmpty()) {
+                LOGGER.warn("JEI Group '{}' resolved to zero items - check your item/tag/mod-id references", name);
+            }
 
-            StackGroup group = new StackGroup(name, iconItem, children, false);
+            StackGroup group = new StackGroup(
+                    name, iconItem, children, savedExpanded.contains(name),
+                    data.borderColor(), data.overlayTint(), data.plusIconColor(), data.borderThickness(), data.backgroundColor()
+            );
             groupCache.put(name, group);
 
             for (ItemStack child : children) {
                 itemToGroupMap.put(child.getItem(), group);
             }
         });
+
+        if (jeiRuntime != null) {
+            refreshFilter();
+        }
     }
 
     @Override
@@ -64,7 +79,6 @@ public class JEIGroupsPlugin implements IModPlugin {
         this.jeiRuntime = jeiRuntime;
 
         IIngredientManager manager = jeiRuntime.getIngredientManager();
-
         Collection<ItemStack> allStacks = manager.getAllIngredients(VanillaTypes.ITEM_STACK);
 
         for (StackGroup group : groupCache.values()) {
@@ -72,38 +86,13 @@ public class JEIGroupsPlugin implements IModPlugin {
 
             if (group.children().size() == 1) {
                 Item targetItem = group.children().getFirst().getItem();
-
-                List<ItemStack> variants = allStacks.stream()
-                        .filter(stack -> stack.getItem() == targetItem)
-                        .toList();
-
+                List<ItemStack> variants = allStacks.stream().filter(stack -> stack.getItem() == targetItem).toList();
                 jeiVariantCache.put(targetItem, variants);
-
-                if (!group.expanded() && variants.size() > 1) {
-                    ItemStack icon = group.icon();
-
-                    List<ItemStack> toRemove = variants.stream()
-                            .filter(stack -> !ItemStack.isSameItemSameComponents(stack, icon))
-                            .toList();
-
-                    if (!toRemove.isEmpty()) {
-                        manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, toRemove);
-                    }
-                }
-
-            } else {
-                List<ItemStack> followers = group.children().subList(1, group.children().size());
-
-                if (!group.expanded() && !followers.isEmpty()) {
-                    manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
-                }
             }
         }
     }
 
     public void toggleGroup(StackGroup group) {
-        IIngredientManager manager = jeiRuntime.getIngredientManager();
-
         boolean nowExpanded = !group.expanded();
         StackGroup toggledGroup = group.withExpanded(nowExpanded);
 
@@ -113,45 +102,16 @@ public class JEIGroupsPlugin implements IModPlugin {
             itemToGroupMap.put(child.getItem(), toggledGroup);
         }
 
-        if (group.children().isEmpty()) return;
-
-        boolean isVariantGroup = group.children().size() == 1;
-
-        if (isVariantGroup) {
-            // 🔵 Variant-based (paintings)
-            Item targetItem = group.children().getFirst().getItem();
-
-            List<ItemStack> variants = jeiVariantCache.get(targetItem);
-            if (variants == null || variants.isEmpty()) return;
-
-            if (nowExpanded) {
-                manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, variants);
-            } else {
-                ItemStack icon = group.icon();
-
-                List<ItemStack> toRemove = variants.stream()
-                        .filter(stack -> !ItemStack.isSameItemSameComponents(stack, icon))
-                        .toList();
-
-                if (!toRemove.isEmpty()) {
-                    manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, toRemove);
-                }
-            }
-
-        } else {
-            // 🟢 Multi-item (wool etc.)
-            List<ItemStack> followers = group.children().subList(1, group.children().size());
-
-            if (!followers.isEmpty()) {
-                if (nowExpanded) {
-                    manager.addIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
-                } else {
-                    manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, followers);
-                }
-            }
-        }
-
+        persistExpandedState();
         refreshFilter();
+    }
+
+    private void persistExpandedState() {
+        Set<String> expandedNames = groupCache.values().stream()
+                .filter(StackGroup::expanded)
+                .map(StackGroup::name)
+                .collect(Collectors.toSet());
+        ExpandedGroupsStorage.save(expandedNames);
     }
 
     public StackGroup getGroupForItem(ItemStack stack) {
@@ -160,8 +120,89 @@ public class JEIGroupsPlugin implements IModPlugin {
     }
 
     private void refreshFilter() {
-        jeiRuntime.getIngredientFilter().setFilterText(
-                jeiRuntime.getIngredientFilter().getFilterText()
+        var filter = jeiRuntime.getIngredientFilter();
+
+        if (filter instanceof com.benbenlaw.jeigroups.mixin.IngredientFilterApiAccessor accessor) {
+            IngredientFilter concreteFilter = accessor.jeigroups$getIngredientFilter();
+            concreteFilter.invalidateCache();
+
+            if (concreteFilter instanceof com.benbenlaw.jeigroups.mixin.IngredientFilterInvoker invoker) {
+                invoker.jeigroups$notifyListenersOfChange();
+            }
+        } else {
+            String currentText = filter.getFilterText();
+            filter.setFilterText(currentText + " ");
+            filter.setFilterText(currentText);
+        }
+    }
+
+    public int getGroupMemberCount(StackGroup group) {
+        if (group.children().size() >= 2) {
+            return group.children().size();
+        }
+        Item targetItem = group.children().getFirst().getItem();
+        List<ItemStack> variants = jeiVariantCache.get(targetItem);
+        return variants != null ? variants.size() : 1;
+    }
+
+    private List<ItemStack> resolveItemStacks(List<String> references) {
+        LinkedHashSet<Item> resolved = new LinkedHashSet<>();
+
+        for (String reference : references) {
+            if (reference.startsWith("#")) {
+                resolveTag(reference.substring(1), resolved);
+            } else if (reference.startsWith("@")) {
+                resolveModId(reference.substring(1), resolved);
+            } else {
+                resolveSingleItem(reference, resolved);
+            }
+        }
+
+        return resolved.stream().map(ItemStack::new).toList();
+    }
+
+    private void resolveTag(String rawId, Set<Item> out) {
+        Identifier id = Identifier.tryParse(rawId);
+        if (id == null) {
+            LOGGER.warn("Invalid tag reference '#{}' in JEI Groups data - skipping", rawId);
+            return;
+        }
+
+        TagKey<Item> tagKey = TagKey.create(Registries.ITEM, id);
+        Optional<HolderSet.Named<Item>> tag = BuiltInRegistries.ITEM.get(tagKey);
+
+        if (tag.isEmpty()) {
+            LOGGER.warn("Tag '#{}' resolved to no items (unknown tag, or not loaded yet - try again after joining a world)", rawId);
+            return;
+        }
+
+        tag.get().forEach(holder -> out.add(holder.value()));
+    }
+
+    private void resolveModId(String modId, Set<Item> out) {
+        BuiltInRegistries.ITEM.listElements().forEach(holder ->
+                holder.unwrapKey().ifPresent(key -> {
+                    if (key.identifier().getNamespace().equals(modId)) {
+                        out.add(holder.value());
+                    }
+                })
         );
     }
+
+    private void resolveSingleItem(String rawId, Set<Item> out) {
+        Identifier id = Identifier.tryParse(rawId);
+        if (id == null) {
+            LOGGER.warn("Invalid item reference '{}' in JEI Groups data - skipping", rawId);
+            return;
+        }
+
+        Item item = BuiltInRegistries.ITEM.getValue(id);
+        if (item == null || item == net.minecraft.world.item.Items.AIR) {
+            LOGGER.warn("Unknown item '{}' in JEI Groups data - skipping", rawId);
+            return;
+        }
+        out.add(item);
+    }
+
+
 }

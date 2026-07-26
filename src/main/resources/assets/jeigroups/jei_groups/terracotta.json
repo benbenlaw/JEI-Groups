@@ -1,8 +1,9 @@
 {
-  "name": "Wool",
-  "icon": "minecraft:white_wool",
+  "name": "Terracotta",
+  "icon": "minecraft:terracotta",
   "items": [
-    "#minecraft:wool"
+    "#minecraft:terracotta",
+    "#c:glazed_terracottas"
   ],
   "border_color": "#FF000000",
   "background_color": "#40404040",

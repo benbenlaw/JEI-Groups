@@ -1,8 +1,9 @@
 {
-  "name": "Wool",
-  "icon": "minecraft:white_wool",
+  "name": "Concretes",
+  "icon": "minecraft:white_concrete",
   "items": [
-    "#minecraft:wool"
+    "#c:concrete_powders",
+    "#c:concretes"
   ],
   "border_color": "#FF000000",
   "background_color": "#40404040",

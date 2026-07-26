@@ -1,8 +1,10 @@
 {
-  "name": "Potions",
-  "icon": "minecraft:potion",
+  "name": "Enchanted Books",
+  "icon": {
+    "id": "minecraft:book"
+  },
   "items": [
-    "minecraft:potion"
+    "minecraft:enchanted_book"
   ],
   "border_color": "#FFB030BD",
   "background_color": "#40B030BD",

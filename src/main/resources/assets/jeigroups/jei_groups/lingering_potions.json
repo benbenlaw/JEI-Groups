@@ -1,8 +1,8 @@
 {
-  "name": "Potions",
-  "icon": "minecraft:potion",
+  "name": "Lingering Potions",
+  "icon": "minecraft:lingering_potion",
   "items": [
-    "minecraft:potion"
+    "minecraft:lingering_potion"
   ],
   "border_color": "#FFB030BD",
   "background_color": "#40B030BD",
