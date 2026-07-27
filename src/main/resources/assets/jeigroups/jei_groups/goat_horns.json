@@ -1,0 +1,12 @@
+{
+  "name": "Goat Horns",
+  "icon": "minecraft:goat_horn",
+  "items": [
+    "minecraft:goat_horn"
+  ],
+  "border_color": "#FFB030BD",
+  "background_color": "#40B030BD",
+  "overlay_tint": "#40B030BD",
+  "plus_icon_color": "#FFFFFFFF",
+  "border_thickness": 1
+}

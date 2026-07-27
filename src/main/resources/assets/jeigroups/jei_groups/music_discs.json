@@ -1,0 +1,12 @@
+{
+  "name": "Music Discs",
+  "icon": "minecraft:music_disc_13",
+  "items": [
+    "*:music_disc_*"
+  ],
+  "border_color": "#FFB030BD",
+  "background_color": "#40B030BD",
+  "overlay_tint": "#40B030BD",
+  "plus_icon_color": "#FFFFFFFF",
+  "border_thickness": 1
+}

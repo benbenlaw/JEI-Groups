@@ -18,6 +18,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import static com.mojang.text2speech.Narrator.LOGGER;
@@ -153,12 +155,52 @@ public class JEIGroupsPlugin implements IModPlugin {
                 resolveTag(reference.substring(1), resolved);
             } else if (reference.startsWith("@")) {
                 resolveModId(reference.substring(1), resolved);
+            } else if (reference.contains("*")) {
+                resolveWildcard(reference, resolved);
             } else {
                 resolveSingleItem(reference, resolved);
             }
         }
 
         return resolved.stream().map(ItemStack::new).toList();
+    }
+
+    private void resolveWildcard(String pattern, Set<Item> out) {
+        Pattern regex;
+        try {
+            regex = globToPattern(pattern);
+        } catch (PatternSyntaxException e) {
+            LOGGER.warn("Invalid wildcard pattern '{}' in JEI Groups data - skipping", pattern);
+            return;
+        }
+
+        boolean matchedAny = false;
+        for (var holder : BuiltInRegistries.ITEM.listElements().toList()) {
+            Optional<net.minecraft.resources.ResourceKey<Item>> key = holder.unwrapKey();
+            if (key.isEmpty()) continue;
+
+            String fullId = key.get().identifier().toString();
+            if (regex.matcher(fullId).matches()) {
+                out.add(holder.value());
+                matchedAny = true;
+            }
+        }
+
+        if (!matchedAny) {
+            LOGGER.warn("Wildcard pattern '{}' in JEI Groups data matched no items", pattern);
+        }
+    }
+
+    private static Pattern globToPattern(String glob) {
+        StringBuilder regex = new StringBuilder();
+        for (char c : glob.toCharArray()) {
+            if (c == '*') {
+                regex.append(".*");
+            } else {
+                regex.append(Pattern.quote(String.valueOf(c)));
+            }
+        }
+        return Pattern.compile(regex.toString());
     }
 
     private void resolveTag(String rawId, Set<Item> out) {

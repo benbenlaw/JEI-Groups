@@ -1,0 +1,12 @@
+{
+  "name": "Shulker Boxes",
+  "icon": "minecraft:shulker_box",
+  "items": [
+    "#minecraft:shulker_boxes"
+  ],
+  "border_color": "#FFFEEEC8",
+  "background_color": "#40FEEEC8",
+  "overlay_tint": "#40FEEEC8",
+  "plus_icon_color": "#FFFFFFFF",
+  "border_thickness": 1
+}

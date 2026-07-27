@@ -1,0 +1,12 @@
+{
+  "name": "Glass Panes",
+  "icon": "minecraft:glass_pane",
+  "items": [
+    "#c:glass_panes"
+  ],
+  "border_color": "#FFFEEEC8",
+  "background_color": "#40FEEEC8",
+  "overlay_tint": "#40FEEEC8",
+  "plus_icon_color": "#FFFFFFFF",
+  "border_thickness": 1
+}
