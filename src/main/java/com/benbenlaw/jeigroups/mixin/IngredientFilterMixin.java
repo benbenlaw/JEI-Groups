@@ -9,11 +9,7 @@ import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Mixin(IngredientFilter.class)
@@ -27,6 +23,7 @@ public class IngredientFilterMixin {
         List<ITypedIngredient<?>> ordered = original.toList();
 
         Set<StackGroup> shownGroups = Collections.newSetFromMap(new IdentityHashMap<>());
+        Map<StackGroup, Integer> visibleCounts = new IdentityHashMap<>();
         List<ITypedIngredient<?>> result = new ArrayList<>(ordered.size());
 
         for (ITypedIngredient<?> ingredient : ordered) {
@@ -37,10 +34,20 @@ public class IngredientFilterMixin {
             }
 
             StackGroup group = plugin.getGroupForItem(stack);
-            if (group == null || group.expanded() || shownGroups.add(group)) {
+            if (group == null) {
+                result.add(ingredient);
+                continue;
+            }
+
+            visibleCounts.merge(group, 1, Integer::sum);
+
+            if (group.expanded() || shownGroups.add(group)) {
                 result.add(ingredient);
             }
         }
+
+        plugin.currentFilteredCounts.clear();
+        plugin.currentFilteredCounts.putAll(visibleCounts);
 
         return result.stream();
     }

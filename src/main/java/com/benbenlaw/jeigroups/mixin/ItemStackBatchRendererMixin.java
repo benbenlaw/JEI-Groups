@@ -86,7 +86,13 @@ public class ItemStackBatchRendererMixin {
         int padX = Math.max(1, (spacing[0] - ICON_SIZE) / 2);
         int padY = Math.max(1, (spacing[1] - ICON_SIZE) / 2);
 
-        guiGraphics.fakeItem(group.icon(), element.x(), element.y());
+        Integer visibleCount = plugin.currentFilteredCounts.get(group);
+        boolean onlyOneVisible = visibleCount != null && visibleCount <= 1;
+
+        if (!onlyOneVisible) {
+            guiGraphics.fakeItem(group.icon(), element.x(), element.y());
+        }
+
         guiGraphics.fill(
                 element.x() - padX, element.y() - padY,
                 element.x() + ICON_SIZE + padX, element.y() + ICON_SIZE + padY,
@@ -98,7 +104,6 @@ public class ItemStackBatchRendererMixin {
         drawMergedOutline(guiGraphics, singleCell, padX, padY, group.borderColor(), group.borderThickness());
     }
 
-    // --- Once per batch, after items render: merged outline around each expanded group's cells ---
     @Inject(method = "renderBatch", at = @At("RETURN"), remap = false)
     private void jeigroups$drawGroupOutlines(GuiGraphicsExtractor guiGraphics, ItemStackRenderer itemStackRenderer, List<BatchRenderElement<ItemStack>> elements, CallbackInfo ci) {
         JEIGroupsPlugin plugin = JEIGroupsPlugin.instance;

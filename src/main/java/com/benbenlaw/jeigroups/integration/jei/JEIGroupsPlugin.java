@@ -32,6 +32,8 @@ public class JEIGroupsPlugin implements IModPlugin {
 
     private final Map<Item, List<ItemStack>> jeiVariantCache = new HashMap<>();
 
+    public final Map<StackGroup, Integer> currentFilteredCounts = new IdentityHashMap<>();
+
     public static JEIGroupsPlugin instance;
     public IJeiRuntime jeiRuntime;
 
@@ -45,6 +47,7 @@ public class JEIGroupsPlugin implements IModPlugin {
         instance = this;
         rebuildGroups();
     }
+
     public void rebuildGroups() {
         groupCache.clear();
         itemToGroupMap.clear();
@@ -61,18 +64,27 @@ public class JEIGroupsPlugin implements IModPlugin {
 
             StackGroup group = new StackGroup(
                     name, iconItem, children, savedExpanded.contains(name),
-                    data.borderColor(), data.overlayTint(), data.plusIconColor(), data.borderThickness(), data.backgroundColor()
+                    data.borderColor(), data.overlayTint(), data.plusIconColor(), data.borderThickness(),
+                    data.backgroundColor()
             );
             groupCache.put(name, group);
 
             for (ItemStack child : children) {
-                itemToGroupMap.put(child.getItem(), group);
+                Item item = child.getItem();
+                StackGroup existing = itemToGroupMap.get(item);
+
+                if (existing != null) {
+
+                    LOGGER.warn(
+                            "Item '{}' is listed in both JEI Groups '{}' and '{}' - keeping it in '{}' since that group loaded first",
+                            BuiltInRegistries.ITEM.getKey(item), existing.name(), name, existing.name()
+                    );
+                    continue;
+                }
+
+                itemToGroupMap.put(item, group);
             }
         });
-
-        if (jeiRuntime != null) {
-            refreshFilter();
-        }
     }
 
     @Override
