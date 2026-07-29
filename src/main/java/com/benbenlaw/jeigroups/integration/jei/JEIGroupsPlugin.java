@@ -160,21 +160,26 @@ public class JEIGroupsPlugin implements IModPlugin {
     }
 
     private List<ItemStack> resolveItemStacks(List<String> references) {
-        LinkedHashSet<Item> resolved = new LinkedHashSet<>();
+        LinkedHashSet<Item> included = new LinkedHashSet<>();
+        LinkedHashSet<Item> excluded = new LinkedHashSet<>();
 
         for (String reference : references) {
-            if (reference.startsWith("#")) {
-                resolveTag(reference.substring(1), resolved);
-            } else if (reference.startsWith("@")) {
-                resolveModId(reference.substring(1), resolved);
-            } else if (reference.contains("*")) {
-                resolveWildcard(reference, resolved);
+            boolean isExclusion = reference.startsWith("!");
+            String actual = isExclusion ? reference.substring(1) : reference;
+            Set<Item> target = isExclusion ? excluded : included;
+
+            if (actual.startsWith("#")) {
+                resolveTag(actual.substring(1), target);
+            } else if (actual.startsWith("@")) {
+                resolveModId(actual.substring(1), target);
+            } else if (actual.contains("*")) {
+                resolveWildcard(actual, target);
             } else {
-                resolveSingleItem(reference, resolved);
+                resolveSingleItem(actual, target);
             }
         }
-
-        return resolved.stream().map(ItemStack::new).toList();
+        included.removeAll(excluded);
+        return included.stream().map(ItemStack::new).toList();
     }
 
     private void resolveWildcard(String pattern, Set<Item> out) {
