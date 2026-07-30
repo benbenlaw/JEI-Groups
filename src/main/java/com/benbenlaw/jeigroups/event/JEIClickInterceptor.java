@@ -50,6 +50,13 @@ public class JEIClickInterceptor {
         StackGroup group = instance.getGroupForItem(stack);
         if (group == null) return;
 
+        var overlay = instance.jeiRuntime.getIngredientListOverlay();
+        var underMouse = overlay.getIngredientUnderMouse();
+        if (underMouse.isEmpty() || !(underMouse.get().getIngredient() instanceof ItemStack hoveredStack)
+                || !ItemStack.isSameItemSameComponents(hoveredStack, stack)) {
+            return;
+        }
+
         if (!group.expanded()) {
             event.getToolTip().set(0, Component.translatable("tooltip.jeigroups.group", group.name())
                     .withStyle(ChatFormatting.GOLD).withStyle(ChatFormatting.BOLD));
