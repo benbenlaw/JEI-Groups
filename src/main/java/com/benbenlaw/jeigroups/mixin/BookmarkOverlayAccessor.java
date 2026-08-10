@@ -1,8 +1,8 @@
 package com.benbenlaw.jeigroups.mixin;
 
 import mezz.jei.gui.bookmarks.BookmarkList;
-import mezz.jei.gui.overlay.IngredientGridWithNavigation;
 import mezz.jei.gui.overlay.bookmarks.BookmarkOverlay;
+import mezz.jei.gui.overlay.ingredients.IngredientGridWithNavigation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 

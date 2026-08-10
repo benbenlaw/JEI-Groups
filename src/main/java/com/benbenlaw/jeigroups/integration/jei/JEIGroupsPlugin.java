@@ -12,7 +12,7 @@ import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.runtime.IIngredientManager;
 import mezz.jei.api.runtime.IJeiRuntime;
 import mezz.jei.gui.ingredients.IngredientFilter;
-import mezz.jei.gui.overlay.IngredientListRenderer;
+import mezz.jei.gui.overlay.ingredients.IngredientListRenderer;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;

@@ -5,7 +5,7 @@ import com.benbenlaw.jeigroups.integration.jei.StackGroup;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.rendering.BatchRenderElement;
 import mezz.jei.common.collect.ListMultiMap;
-import mezz.jei.gui.overlay.IngredientListRenderer;
+import mezz.jei.gui.overlay.ingredients.IngredientListRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
