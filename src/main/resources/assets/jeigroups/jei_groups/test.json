@@ -1,0 +1,20 @@
+{
+  "name": "TEST",
+  "icon": "minecraft:diamond",
+  "items": [
+    "minecraft:diamond",
+    "minecraft:diamond_block",
+    "minecraft:emerald",
+    "minecraft:emerald_block",
+    "minecraft:lapis_block",
+    "minecraft:netherite_block",
+    "minecraft:quartz_block",
+    "minecraft:redstone_block",
+    "minecraft:stone_slab"
+  ],
+  "border_color": "#FFFEEEC8",
+  "background_color": "#40FEEEC8",
+  "overlay_tint": "#40FEEEC8",
+  "plus_icon_color": "#FFFFFFFF",
+  "border_thickness": 1
+}

@@ -2,20 +2,18 @@
   "required": true,
   "package": "com.benbenlaw.jeigroups.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [
+  "client": [
+    "BookmarkOverlayAccessor",
+    "IngredientGridAccessor",
+    "IngredientGridWithNavigationAccessor",
     "IngredientFilterApiAccessor",
     "IngredientFilterInvoker",
     "IngredientFilterMixin",
     "IngredientSorterMixin",
-    "ItemStackBatchRendererMixin"
-  ],
-  "client": [
-    "IngredientFilterMixin",
-    "IngredientSorterMixin",
-    "ItemStackBatchRendererMixin"
+    "IngredientListRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
-  }
-
+  },
+  "mixins": []
 }

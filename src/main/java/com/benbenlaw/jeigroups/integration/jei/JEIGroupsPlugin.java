@@ -1,6 +1,9 @@
 package com.benbenlaw.jeigroups.integration.jei;
 
 import com.benbenlaw.jeigroups.JEIGroups;
+import com.benbenlaw.jeigroups.mixin.BookmarkOverlayAccessor;
+import com.benbenlaw.jeigroups.mixin.IngredientGridAccessor;
+import com.benbenlaw.jeigroups.mixin.IngredientGridWithNavigationAccessor;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.VanillaTypes;
@@ -9,6 +12,7 @@ import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.runtime.IIngredientManager;
 import mezz.jei.api.runtime.IJeiRuntime;
 import mezz.jei.gui.ingredients.IngredientFilter;
+import mezz.jei.gui.overlay.IngredientListRenderer;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -36,6 +40,7 @@ public class JEIGroupsPlugin implements IModPlugin {
 
     public static JEIGroupsPlugin instance;
     public IJeiRuntime jeiRuntime;
+    public IngredientListRenderer bookmarksRenderer;
 
     @Override
     public Identifier getPluginUid() {
@@ -102,6 +107,17 @@ public class JEIGroupsPlugin implements IModPlugin {
                 Item targetItem = group.children().getFirst().getItem();
                 List<ItemStack> variants = allStacks.stream().filter(stack -> stack.getItem() == targetItem).toList();
                 jeiVariantCache.put(targetItem, variants);
+            }
+        }
+
+        var bookmarkOverlay = jeiRuntime.getBookmarkOverlay();
+        if (bookmarkOverlay instanceof BookmarkOverlayAccessor bmAccessor) {
+            var contents = bmAccessor.jeigroups$getContents();
+            if (contents instanceof IngredientGridWithNavigationAccessor navAccessor) {
+                var grid = navAccessor.jeigroups$getIngredientGrid();
+                if (grid instanceof IngredientGridAccessor gridAccessor) {
+                    bookmarksRenderer = gridAccessor.jeigroups$getIngredientListRenderer();
+                }
             }
         }
     }

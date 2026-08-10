@@ -3,6 +3,7 @@ package com.benbenlaw.jeigroups.event;
 import com.benbenlaw.jeigroups.JEIGroups;
 import com.benbenlaw.jeigroups.integration.jei.JEIGroupsPlugin;
 import com.benbenlaw.jeigroups.integration.jei.StackGroup;
+import mezz.jei.api.ingredients.ITypedIngredient;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -15,6 +16,8 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.Optional;
+
 import static com.benbenlaw.jeigroups.integration.jei.JEIGroupsPlugin.instance;
 
 @EventBusSubscriber(modid = JEIGroups.MOD_ID, value = Dist.CLIENT)
@@ -25,9 +28,7 @@ public class JEIClickInterceptor {
         if (event.getButton() != GLFW.GLFW_MOUSE_BUTTON_LEFT) return;
         if (instance == null || instance.jeiRuntime == null) return;
 
-        var overlay = instance.jeiRuntime.getIngredientListOverlay();
-        var ingredient = overlay.getIngredientUnderMouse();
-
+        var ingredient = jeigroups$getHoveredIngredient();
         if (ingredient.isEmpty() || !(ingredient.get().getIngredient() instanceof ItemStack stack)) return;
 
         StackGroup group = instance.getGroupForItem(stack);
@@ -50,8 +51,7 @@ public class JEIClickInterceptor {
         StackGroup group = instance.getGroupForItem(stack);
         if (group == null) return;
 
-        var overlay = instance.jeiRuntime.getIngredientListOverlay();
-        var underMouse = overlay.getIngredientUnderMouse();
+        var underMouse = jeigroups$getHoveredIngredient();
         if (underMouse.isEmpty() || !(underMouse.get().getIngredient() instanceof ItemStack hoveredStack)
                 || !ItemStack.isSameItemSameComponents(hoveredStack, stack)) {
             return;
@@ -68,6 +68,10 @@ public class JEIClickInterceptor {
             event.getToolTip().add(Component.translatable("tooltip.jeigroups.click_to_collapse", group.name())
                     .withStyle(ChatFormatting.GOLD).withStyle(ChatFormatting.ITALIC));
         }
+    }
+
+    private static Optional<ITypedIngredient<?>> jeigroups$getHoveredIngredient() {
+        return instance.jeiRuntime.getIngredientListOverlay().getIngredientUnderMouse();
     }
 
     private static boolean isShiftDown() {
