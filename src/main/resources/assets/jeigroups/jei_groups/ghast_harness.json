@@ -1,0 +1,12 @@
+{
+  "name": "Ghast Harnesses",
+  "icon": "minecraft:white_harness",
+  "items": [
+    "#minecraft:harnesses"
+  ],
+  "border_color": "#FF000000",
+  "background_color": "#40404040",
+  "overlay_tint": "#40404040",
+  "plus_icon_color": "#FFFFFFFF",
+  "border_thickness": 1
+}

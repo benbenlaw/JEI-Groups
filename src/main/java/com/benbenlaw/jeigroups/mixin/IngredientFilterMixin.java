@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 public class IngredientFilterMixin {
 
     @ModifyReturnValue(method = "getIngredientListUncached", at = @At("RETURN"), remap = false)
-    private Stream<ITypedIngredient<?>> jeigroups$collapseGroups(Stream<ITypedIngredient<?>> original, String filterText) {
+    private Stream<ITypedIngredient<?>> jeigroups$collapseGroups(Stream<ITypedIngredient<?>> original) {
         JEIGroupsPlugin plugin = JEIGroupsPlugin.instance;
         if (plugin == null) return original;
 

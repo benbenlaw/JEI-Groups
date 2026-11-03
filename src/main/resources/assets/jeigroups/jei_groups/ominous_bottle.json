@@ -1,0 +1,12 @@
+{
+  "name": "Ominous Bottles",
+  "icon": "minecraft:ominous_bottle",
+  "items": [
+    "minecraft:ominous_bottle"
+  ],
+  "border_color": "#FFB030BD",
+  "background_color": "#40B030BD",
+  "overlay_tint": "#40B030BD",
+  "plus_icon_color": "#FFFFFFFF",
+  "border_thickness": 1
+}

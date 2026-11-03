@@ -2,6 +2,8 @@ package com.benbenlaw.jeigroups.mixin;
 
 import com.benbenlaw.jeigroups.integration.jei.JEIGroupsPlugin;
 import com.benbenlaw.jeigroups.integration.jei.StackGroup;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.rendering.BatchRenderElement;
 import mezz.jei.common.collect.ListMultiMap;
@@ -11,9 +13,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.*;
 
@@ -25,8 +24,14 @@ public abstract class IngredientListRendererMixin {
     @Accessor("renderElementsByType")
     public abstract ListMultiMap<IIngredientType<?>, BatchRenderElement<?>> jeigroups$renderElementsByType();
 
-    @Inject(method = "render", at = @At("HEAD"))
-    private void jeigroups$drawGroupBackgrounds(GuiGraphicsExtractor guiGraphics, CallbackInfo ci) {
+    @WrapMethod(method = "render")
+    private void jeigroups$wrapRender(GuiGraphicsExtractor guiGraphics, Operation<Void> original) {
+        jeigroups$drawGroupBackgrounds(guiGraphics);
+        original.call(guiGraphics);
+        jeigroups$drawAnchorsAndOutlines(guiGraphics);
+    }
+
+    private void jeigroups$drawGroupBackgrounds(GuiGraphicsExtractor guiGraphics) {
         JEIGroupsPlugin plugin = JEIGroupsPlugin.instance;
         if (plugin == null || (Object) this == plugin.bookmarksRenderer) return;
 
@@ -48,8 +53,7 @@ public abstract class IngredientListRendererMixin {
         }
     }
 
-    @Inject(method = "render", at = @At("RETURN"))
-    private void jeigroups$drawAnchorsAndOutlines(GuiGraphicsExtractor guiGraphics, CallbackInfo ci) {
+    private void jeigroups$drawAnchorsAndOutlines(GuiGraphicsExtractor guiGraphics) {
         JEIGroupsPlugin plugin = JEIGroupsPlugin.instance;
         if (plugin == null || (Object) this == plugin.bookmarksRenderer) return;
 
